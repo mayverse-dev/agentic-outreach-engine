@@ -34,14 +34,12 @@ st.markdown("""
     }
 
     /* 2. Animated App Background - Forced & Visible */
-    /* Target the exact Streamlit container so it doesn't get hidden */
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(-45deg, #000000, #000000, #0a2050, #1e3a8a, #000000) !important;
         background-size: 400% 400% !important;
         animation: gradientBG 10s ease infinite !important;
     }
     
-    /* Make the top header area transparent so it doesn't block the waves */
     [data-testid="stHeader"] {
         background-color: transparent !important;
     }
@@ -52,7 +50,7 @@ st.markdown("""
         100% { background-position: 0% 50%; }
     }
 
-    /* 3. Streamlit Input Boxes (Dark Blue + White Text + Blue Border) */
+    /* 3. Streamlit Input Boxes */
     .stTextInput input, .stTextArea textarea, div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="base-input"] {
         background-color: var(--input-bg) !important;
         color: var(--input-text) !important;
@@ -175,12 +173,12 @@ def scrape_website(url):
 
 
 def generate_icebreaker(client, company_name, website_text):
-    if website_text == "Could not read website.":
-        return f"I've been following the great work you do at {company_name}."
+    if website_text == "Could not read website." or company_name == "your company":
+        return "I hope you are having a great week so far!"
 
     prompt = f"""
-    You are an expert B2B copywriter. Read the text from the website of {company_name}: "{website_text}"
-    Write ONE single, natural-sounding sentence to use as an icebreaker in a cold email. 
+    You are an expert copywriter. Read the text from the website of {company_name}: "{website_text}"
+    Write ONE single, natural-sounding sentence to use as an icebreaker in an email. 
     It should compliment them on a specific service or achievement. Do not use the words "I noticed" or "I saw".
     """
     try:
@@ -190,25 +188,30 @@ def generate_icebreaker(client, company_name, website_text):
         )
         return chat_completion.choices[0].message.content.strip()
     except Exception:
-        return f"I am really impressed by the team at {company_name}."
+        return "I hope you are having a great week so far!"
 
 
 def generate_full_email(client, first_name, company_name, website_text, custom_prompt, sender_name):
+    # Dynamically adjust the prompt based on whether company info exists
+    company_context = f"Target Company: {company_name}" if company_name != "your company" else "No specific company data provided."
+    web_context = f"Target Website Context: '{website_text}'" if website_text != "Could not read website." else "No website data provided."
+
     prompt = f"""
-    You are an expert B2B sales copywriter. 
+    You are an expert copywriter writing a personalized email.
+    
     Target First Name: {first_name}
-    Target Company: {company_name}
-    Target Website Context: "{website_text}"
+    {company_context}
+    {web_context}
     Sender Name: {sender_name}
     
     USER INSTRUCTIONS FOR THE EMAIL:
     "{custom_prompt}"
     
-    Write a complete cold email based EXACTLY on the User Instructions above. 
-    Use the Target Website Context to seamlessly personalize the opening. 
+    Write a complete email based EXACTLY on the User Instructions above. 
+    If Company and Website context is provided, you may use it to personalize the message. If no company/website is provided, just focus entirely on fulfilling the User Instructions.
     
     MANDATORY RULES:
-    1. You MUST start the email with exactly: "Hi {first_name},"
+    1. You MUST start the email with exactly: "Hi {first_name}," (or "Hi there," if no name is provided).
     2. You MUST sign off the email with: "Best,\\n{sender_name}"
     3. Do not include subject lines, just the email body.
     """
@@ -219,7 +222,7 @@ def generate_full_email(client, first_name, company_name, website_text, custom_p
         )
         return chat_completion.choices[0].message.content.strip()
     except Exception:
-        return f"Hi {first_name},\n\nI was looking at {company_name} and love what you do. I'd love to chat.\n\nBest,\n{sender_name}"
+        return f"Hi {first_name},\n\nI wanted to reach out and connect.\n\nBest,\n{sender_name}"
 
 
 # --- UI LAYOUT ---
@@ -232,10 +235,10 @@ with tab_about:
     st.markdown("**Hi, I'm Wasif Mayraj.** I'm a CSE undergrad, majoring in AL/ML. I'm also a freelance AI Automation Specialist in Fiverr who is focused on building autonomous agents that eliminate operational bottlenecks for businesses.")
     st.header("Why I built this")
     st.markdown("""
-    Most outbound sales campaigns suffer from a massive bottleneck: **Lead Decay & Follow-up Fatigue.** Sales teams spend hours manually researching prospects to write personalized emails, or they default to sending generic, robotic templates that get caught in spam filters. I built this engine to automate the intelligence behind the outreach, not just the sending. These clients waste a ton of time manually brainstorming emails.
+    Most outbound campaigns suffer from a massive bottleneck: **Lead Decay & Follow-up Fatigue.** Teams spend hours manually researching to write personalized emails, or default to generic templates. I built this engine to automate the intelligence behind the outreach, not just the sending.
     """)
     st.header("Why this engine is unique")
-    st.markdown("Unlike standard tools that just do simple 'Find & Replace', this tool is a **Dual-Mode Contextual AI Agent**. It actively crawls your prospect's website and uses Meta's Llama 3 reasoning to either inject hyper-personalized icebreakers into your proven templates, or autonomously write the entire email from scratch based on your custom prompt and saves each mail as a draft for you to send with one click. All you need is your groq API key to unlock AI resoning for your mails which you can get yourself for free in two seconds.")
+    st.markdown("Unlike standard tools that just do simple 'Find & Replace', this tool is a **Dual-Mode Contextual AI Agent**. It actively crawls your prospect's website and uses Meta's Llama 3 reasoning to either inject hyper-personalized icebreakers, or autonomously write the entire email from scratch based on your prompt. All you need is your groq API key to unlock AI reasoning.")
     st.divider()
     st.markdown(
         "### Let's Connect:\n* 🔗 [My LinkedIn](https://www.linkedin.com/in/wasif-mayraj-82103329b)\n* 💻 [My GitHub](https://github.com/mayverse-dev)")
@@ -243,8 +246,8 @@ with tab_about:
 with tab_app:
     st.markdown("### 1. Sender Details")
     sender_name_input = st.text_input(
-        "Your Name (How should the AI sign the email?)", placeholder="e.g. seller")
-    sender_name = sender_name_input if sender_name_input else "seller"
+        "Your Name (How should the AI sign the email?)", placeholder="e.g. Wasif")
+    sender_name = sender_name_input if sender_name_input else "Wasif"
 
     st.markdown("### 2. Choose AI Autonomy Level")
     generation_mode = st.radio(
@@ -255,23 +258,24 @@ with tab_app:
 
     if "Hybrid" in generation_mode:
         with st.expander("Edit Your Hybrid Template", expanded=True):
-            default_template = "Hi {First Name},\n\n{Icebreaker}\n\nI wanted to reach out because we help companies like {Company Name} scale their operations using custom AI workflows. \n\nIf you are open to seeing a quick prototype, just reply \"Yes\".\n\nBest,\n{Sender Name}"
+            default_template = "Hi {First Name},\n\n{Icebreaker}\n\nI wanted to reach out to you today to discuss how we can help {Company Name} scale operations.\n\nLet me know what you think.\n\nBest,\n{Sender Name}"
             user_input_box = st.text_area(
                 "Write your base template here:", placeholder=default_template, height=200)
             user_input = user_input_box if user_input_box else default_template
     else:
         with st.expander("Prompt the AI (Chatbot Style)", expanded=True):
-            default_ai_prompt = "Write a casual, 3-sentence email. Pitch my Custom AI Automation workflows. Acknowledge a recent achievement from their website in the first sentence. Ask for a quick 5-minute chat."
+            default_ai_prompt = "Wish them a happy birthday and hope they have a fantastic year ahead! Keep it short, warm, and professional."
             user_input_box = st.text_area(
                 "Give the AI instructions on how to write the email:", placeholder=f"e.g. {default_ai_prompt}", height=150)
             user_input = user_input_box if user_input_box else default_ai_prompt
 
     st.markdown("### 3. Upload Lead List")
     uploaded_file = st.file_uploader(
-        "Upload CSV (Columns: First Name, Company Name, Website, Email)", type=["csv"])
+        "Upload CSV (Requires 'Email' column. Optional: 'First Name', 'Company Name', 'Website')", type=["csv"])
 
     if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file).fillna("N/A")
+        df = pd.read_csv(uploaded_file)
+        # Strip whitespace from columns to avoid matching errors
         df.columns = df.columns.str.strip()
         st.dataframe(df.head(3), use_container_width=True)
 
@@ -295,7 +299,6 @@ with tab_app:
                     "⚠️ Your CSV must have a column exactly named 'Email'. Please check your file.")
             else:
                 try:
-                    # Using the key from the Streamlit input box for security
                     client = Groq(api_key=groq_key)
                     st.success(
                         "Agents initialized! Generating tailored campaigns below...")
@@ -304,23 +307,41 @@ with tab_app:
 
                     with results_container:
                         for index, row in df.iterrows():
-                            # --- FALLBACK LOGIC ---
-                            # Use .get() so it doesn't crash if the column is entirely missing
-                            raw_first_name = row.get('First Name', 'N/A')
-                            raw_company = row.get('Company Name', 'N/A')
-                            raw_website = row.get('Website', 'N/A')
-                            # We already know this exists from our check
-                            email_address = row['Email']
+                            # --- GRACEFUL FALLBACK LOGIC ---
+                            # Extract data securely even if the columns do not exist in the CSV
+                            raw_first = str(
+                                row.get('First Name', 'N/A')).strip()
+                            raw_company = str(
+                                row.get('Company Name', 'N/A')).strip()
+                            raw_website = str(
+                                row.get('Website', 'N/A')).strip()
+                            email_address = str(row['Email']).strip()
 
-                            # If blank, replace "N/A" with natural sounding defaults
-                            first_name = "there" if str(
-                                raw_first_name) == "N/A" else raw_first_name
-                            company_name = "your company" if str(
-                                raw_company) == "N/A" else raw_company
+                            # Set intelligent defaults for missing data
+                            first_name = "there" if raw_first in [
+                                "N/A", "nan", "None", ""] else raw_first
 
-                            with st.spinner(f"Crawling {company_name}..."):
-                                site_context = scrape_website(raw_website)
+                            has_company = raw_company not in [
+                                "N/A", "nan", "None", ""]
+                            company_name = raw_company if has_company else "your company"
+
+                            has_website = raw_website not in [
+                                "N/A", "nan", "None", ""]
+
+                            # Update UI elements dynamically based on available data
+                            if has_company:
+                                status_msg = f"Crawling {company_name}..."
                                 subject = f"Quick question for {company_name}"
+                                card_title = f"🏢 {company_name}"
+                            else:
+                                status_msg = f"Generating for {first_name}..."
+                                subject = "Checking in"
+                                card_title = f"✉️ Outreach Email"
+
+                            with st.spinner(status_msg):
+                                # Only try to scrape if a website was actually provided
+                                site_context = scrape_website(
+                                    raw_website) if has_website else "Could not read website."
 
                                 if "Hybrid" in generation_mode:
                                     icebreaker = generate_icebreaker(
@@ -343,9 +364,9 @@ with tab_app:
 
                                 st.markdown(f"""
                                 <div class="glass-card">
-                                    <h3 class="card-header-text">🏢 {company_name} <span class="card-subtext">(To: {first_name} - {email_address})</span></h3>
+                                    <h3 class="card-header-text">{card_title} <span class="card-subtext">(To: {first_name} - {email_address})</span></h3>
                                     <div class="email-body-text">{full_email}</div>
-                                    <a href="{mailto_link}" class="mailto-btn" target="_blank">🚀 One-Click Send in Email App</a>
+                                    <a href="{mailto_link}" class="mailto-btn" target="_blank">🚀 One-Click Send</a>
                                 </div>
                                 """, unsafe_allow_html=True)
 
