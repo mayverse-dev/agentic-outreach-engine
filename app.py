@@ -304,34 +304,46 @@ with tab_app:
 
                     with results_container:
                         for index, row in df.iterrows():
-                            with st.spinner(f"Crawling {row['Company Name']}..."):
-                                site_context = scrape_website(row['Website'])
-                                subject = f"Quick question for {row['Company Name']}"
+                            # --- FALLBACK LOGIC ---
+                            # Use .get() so it doesn't crash if the column is entirely missing
+                            raw_first_name = row.get('First Name', 'N/A')
+                            raw_company = row.get('Company Name', 'N/A')
+                            raw_website = row.get('Website', 'N/A')
+                            # We already know this exists from our check
+                            email_address = row['Email']
+
+                            # If blank, replace "N/A" with natural sounding defaults
+                            first_name = "there" if str(
+                                raw_first_name) == "N/A" else raw_first_name
+                            company_name = "your company" if str(
+                                raw_company) == "N/A" else raw_company
+
+                            with st.spinner(f"Crawling {company_name}..."):
+                                site_context = scrape_website(raw_website)
+                                subject = f"Quick question for {company_name}"
 
                                 if "Hybrid" in generation_mode:
                                     icebreaker = generate_icebreaker(
-                                        client, row['Company Name'], site_context)
+                                        client, company_name, site_context)
                                     try:
                                         full_email = user_input.format(
-                                            **{"First Name": row['First Name'], "Company Name": row['Company Name'], "Icebreaker": icebreaker, "Sender Name": sender_name}
+                                            **{"First Name": first_name, "Company Name": company_name, "Icebreaker": icebreaker, "Sender Name": sender_name}
                                         )
                                     except KeyError:
                                         st.error(
                                             "Template Error: Check your `{}` placeholders.")
                                         st.stop()
                                 else:
-                                    # Calling the function properly here
                                     full_email = generate_full_email(
-                                        client, row['First Name'], row['Company Name'], site_context, user_input, sender_name)
+                                        client, first_name, company_name, site_context, user_input, sender_name)
 
-                                # Formulate the link properly
                                 subject_encoded = urllib.parse.quote(subject)
                                 body_encoded = urllib.parse.quote(full_email)
-                                mailto_link = f"mailto:{row['Email']}?subject={subject_encoded}&body={body_encoded}"
+                                mailto_link = f"mailto:{email_address}?subject={subject_encoded}&body={body_encoded}"
 
                                 st.markdown(f"""
                                 <div class="glass-card">
-                                    <h3 class="card-header-text"> {row['Company Name']} <span class="card-subtext">(To: {row['First Name']} - {row['Email']})</span></h3>
+                                    <h3 class="card-header-text">🏢 {company_name} <span class="card-subtext">(To: {first_name} - {email_address})</span></h3>
                                     <div class="email-body-text">{full_email}</div>
                                     <a href="{mailto_link}" class="mailto-btn" target="_blank">🚀 One-Click Send in Email App</a>
                                 </div>
